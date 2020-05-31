@@ -1,6 +1,6 @@
-## Pretty much the same implementation of the Rust Book's minigrep project. 
+## My clone of the Rust Book's minigrep project. 
 
-My addition: I added the option to do KMP string search by indexing the pattern once.
+My addition: I added the option to do KMP string search by indexing the pattern only once.
 
 ``` Bash
 # Case sensitive search
