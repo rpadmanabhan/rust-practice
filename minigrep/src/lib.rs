@@ -1,6 +1,8 @@
 use std::env;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::error::Error;
+use std::io::prelude::BufRead;
 
 use kmp;
 
@@ -41,21 +43,22 @@ impl Config {
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
-    let contents = fs::read_to_string(config.filename)?;
+    let f = File::open(config.filename)?;
+    let reader = BufReader::new(f);
 
     let results = if config.case_sensitive {
         if config.use_kmp {
-            kmp_search(&config.query, &contents)
+            kmp_search(&config.query, reader)
         }
         else {
-            search(&config.query, &contents)
+            search(&config.query, reader)
         }
     } else {
         if config.use_kmp {
-            kmp_search_case_insensitive(&config.query, &contents)
+            kmp_search_case_insensitive(&config.query, reader)
         }
         else {
-            search_case_insensitive(&config.query, &contents)
+            search_case_insensitive(&config.query, reader)
         }
     };
     for line in results {
@@ -72,41 +75,68 @@ pub fn kmp_found(query: &str, line: &str, jump_table: &Vec<usize>) -> bool {
     }
 }
 
-pub fn kmp_search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+pub fn kmp_search<T: BufRead + Sized>(query: &str, reader: T) -> Vec<String> {
     // index query
     let jump_table:Vec<usize> = kmp::return_failure_function_table(&query);
 
+    let mut result = Vec::new();
+
     // search query in text using index to skip comparisons
-    contents
-        .lines()
-        .filter(|line| kmp_found(query, line, &jump_table))
-        .collect()
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+        if kmp_found(query, &line, &jump_table)  {
+            result.push(line);
+        }
+    }
+
+    result
 }
 
-pub fn kmp_search_case_insensitive<'a>(
-    query: &str, contents: &'a str) -> Vec<&'a str> {
+pub fn kmp_search_case_insensitive<T: BufRead + Sized>(query: &str, reader: T) -> Vec<String> {
     // index query
     let jump_table:Vec<usize> = kmp::return_failure_function_table(&query.to_lowercase());
 
-    contents
-        .lines()
-        .filter(|line| kmp_found(&query.to_lowercase(), &line.to_lowercase(), &jump_table))
-        .collect()
+    let mut result = Vec::new();
+
+    // search query in text using index to skip comparisons
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+        if kmp_found(&query.to_lowercase(), &line.to_lowercase(), &jump_table)  {
+            result.push(line);
+        }
+    }
+
+    result
+
 }
 
 
-pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    contents
-        .lines()
-        .filter(|line| line.contains(query))
-        .collect()
+pub fn search<T: BufRead + Sized>(query: &str, reader: T) -> Vec<String> {
+    let mut result = Vec::new();
+
+    // search query in text using index to skip comparisons
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+        if line.contains(query)  {
+            result.push(line);
+        }
+    }
+
+    result
 }
 
-pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    contents
-        .lines()
-        .filter(|line| line.to_lowercase().contains(&query.to_lowercase()))
-        .collect()
+pub fn search_case_insensitive<T: BufRead + Sized>(query: &str, reader: T) -> Vec<String> {
+    let mut result = Vec::new();
+
+    // search query in text using index to skip comparisons
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+        if line.to_lowercase().contains(&query.to_lowercase())  {
+            result.push(line);
+        }
+    }
+
+    result
 }
 
 #[cfg(test)]
